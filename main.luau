@@ -21,8 +21,8 @@ local RootPart = Character:WaitForChild("HumanoidRootPart")
 local Settings = {
     JoinTeam = "Pirates",
     CameraLock = true,
-    LockRange = 200,
-    SmoothSpeed = 0.25,
+    LockRange = 250,
+    SmoothSpeed = 0.3,
 }
 
 -- ============================================
@@ -42,64 +42,36 @@ local function Notify(text)
 end
 
 -- ============================================
--- GET ALL PLAYERS (ВКЛЮЧАЯ SAFE ZONE)
+-- GET NEAREST ENEMY (БЕЗ ОГРАНИЧЕНИЙ)
 -- ============================================
-
-local function GetAllPlayers()
-    local allPlayers = {}
-    for _, player in pairs(Players:GetPlayers()) do
-        if player ~= Player and player.Character then
-            table.insert(allPlayers, player)
-        end
-    end
-    return allPlayers
-end
-
--- ============================================
--- GET ENEMIES
--- ============================================
-
-local function IsEnemy(otherPlayer)
-    if not otherPlayer or not otherPlayer.Character then
-        return false
-    end
-    
-    if otherPlayer == Player then
-        return false
-    end
-    
-    local otherChar = otherPlayer.Character
-    if not otherChar:FindFirstChild("HumanoidRootPart") or not otherChar:FindFirstChild("Humanoid") then
-        return false
-    end
-    
-    if otherChar.Humanoid.Health <= 0 then
-        return false
-    end
-    
-    -- Проверяем команду
-    if otherPlayer.Team and Player.Team then
-        if otherPlayer.Team == Player.Team then
-            return false  -- Товарищ, не враг
-        end
-    end
-    
-    return true
-end
 
 local function GetNearestEnemy()
     local nearest = nil
     local nearestDistance = Settings.LockRange
     
-    for _, otherPlayer in pairs(GetAllPlayers()) do
-        if IsEnemy(otherPlayer) then
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= Player and otherPlayer.Character then
             local otherChar = otherPlayer.Character
-            if otherChar and otherChar:FindFirstChild("HumanoidRootPart") then
-                local distance = (otherChar.HumanoidRootPart.Position - RootPart.Position).Magnitude
+            local otherHRP = otherChar:FindFirstChild("HumanoidRootPart")
+            local otherHum = otherChar:FindFirstChild("Humanoid")
+            
+            if otherHRP and otherHum and otherHum.Health > 0 then
+                -- Проверяем команду (враг = другая команда ИЛИ нет команды)
+                local isEnemy = false
                 
-                if distance < nearestDistance then
-                    nearestDistance = distance
-                    nearest = otherChar
+                if not Player.Team or not otherPlayer.Team then
+                    isEnemy = true
+                elseif otherPlayer.Team ~= Player.Team then
+                    isEnemy = true
+                end
+                
+                if isEnemy then
+                    local distance = (otherHRP.Position - RootPart.Position).Magnitude
+                    
+                    if distance < nearestDistance then
+                        nearestDistance = distance
+                        nearest = otherChar
+                    end
                 end
             end
         end
@@ -109,7 +81,7 @@ local function GetNearestEnemy()
 end
 
 -- ============================================
--- CAMERA LOCK
+-- CAMERA LOCK (ВСЕГДА РАБОТАЕТ)
 -- ============================================
 
 local function LockCameraOnTarget(targetChar)
@@ -129,8 +101,6 @@ local function LockCameraOnTarget(targetChar)
     
     -- Целимся в голову
     local targetPos = targetHead.Position + Vector3.new(0, 0.5, 0)
-    
-    -- Получаем позицию камеры
     local cameraPos = Camera.CFrame.Position
     
     -- Вычисляем направление
@@ -139,7 +109,7 @@ local function LockCameraOnTarget(targetChar)
         direction = direction.Unit
         local newCFrame = CFrame.new(cameraPos, cameraPos + direction)
         
-        -- Плавная интерполяция
+        -- Плавная интерполяция (БЫСТРАЯ)
         Camera.CFrame = Camera.CFrame:Lerp(newCFrame, Settings.SmoothSpeed)
     end
 end
@@ -167,7 +137,7 @@ local function UpdateCameraLock()
         LockedTarget = GetNearestEnemy()
     end
     
-    -- Применяем блокировку
+    -- Применяем блокировку (ВЕЗДЕ, даже в safe zone)
     if LockedTarget then
         LockCameraOnTarget(LockedTarget)
     end
@@ -339,4 +309,4 @@ end)
 JoinTeam(Settings.JoinTeam)
 CreateMenu()
 
-Notify("Скрипт загружен! Аим работает везде (даже в safe zone).")
+Notify("Скрипт загружен! Аим работает ВЕЗДЕ (даже в safe zone).")
