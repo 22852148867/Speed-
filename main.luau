@@ -21,8 +21,8 @@ local RootPart = Character:WaitForChild("HumanoidRootPart")
 local Settings = {
     JoinTeam = "Pirates",
     CameraLock = true,
-    LockRange = 150,
-    SmoothSpeed = 0.25,  -- БЫСТРЕЕ
+    LockRange = 200,
+    SmoothSpeed = 0.25,
 }
 
 -- ============================================
@@ -32,10 +32,6 @@ local Settings = {
 local LockedTarget = nil
 local CameraLocked = Settings.CameraLock
 local MenuFrame = nil
-local isDragging = false
-local dragStart = nil
-local frameStart = nil
-local lastUpdate = 0
 
 -- ============================================
 -- UTILITY FUNCTIONS
@@ -43,6 +39,20 @@ local lastUpdate = 0
 
 local function Notify(text)
     print("[Speed Script] " .. text)
+end
+
+-- ============================================
+-- GET ALL PLAYERS (ВКЛЮЧАЯ SAFE ZONE)
+-- ============================================
+
+local function GetAllPlayers()
+    local allPlayers = {}
+    for _, player in pairs(Players:GetPlayers()) do
+        if player ~= Player and player.Character then
+            table.insert(allPlayers, player)
+        end
+    end
+    return allPlayers
 end
 
 -- ============================================
@@ -67,8 +77,11 @@ local function IsEnemy(otherPlayer)
         return false
     end
     
-    if otherPlayer.Team and Player.Team and otherPlayer.Team == Player.Team then
-        return false
+    -- Проверяем команду
+    if otherPlayer.Team and Player.Team then
+        if otherPlayer.Team == Player.Team then
+            return false  -- Товарищ, не враг
+        end
     end
     
     return true
@@ -78,7 +91,7 @@ local function GetNearestEnemy()
     local nearest = nil
     local nearestDistance = Settings.LockRange
     
-    for _, otherPlayer in pairs(Players:GetPlayers()) do
+    for _, otherPlayer in pairs(GetAllPlayers()) do
         if IsEnemy(otherPlayer) then
             local otherChar = otherPlayer.Character
             if otherChar and otherChar:FindFirstChild("HumanoidRootPart") then
@@ -114,18 +127,21 @@ local function LockCameraOnTarget(targetChar)
         return
     end
     
-    -- Целимся в голову с небольшим смещением вверх
-    local targetPos = targetHead.Position + Vector3.new(0, 0.3, 0)
+    -- Целимся в голову
+    local targetPos = targetHead.Position + Vector3.new(0, 0.5, 0)
     
     -- Получаем позицию камеры
     local cameraPos = Camera.CFrame.Position
     
-    -- Вычисляем новое направление камеры
-    local direction = (targetPos - cameraPos).Unit
-    local newCFrame = CFrame.new(cameraPos, cameraPos + direction)
-    
-    -- Плавная интерполяция (БЫСТРЕЕ)
-    Camera.CFrame = Camera.CFrame:Lerp(newCFrame, Settings.SmoothSpeed)
+    -- Вычисляем направление
+    local direction = (targetPos - cameraPos)
+    if direction.Magnitude > 0 then
+        direction = direction.Unit
+        local newCFrame = CFrame.new(cameraPos, cameraPos + direction)
+        
+        -- Плавная интерполяция
+        Camera.CFrame = Camera.CFrame:Lerp(newCFrame, Settings.SmoothSpeed)
+    end
 end
 
 local function UpdateCameraLock()
@@ -177,7 +193,7 @@ local function JoinTeam(teamName)
 end
 
 -- ============================================
--- CREATE MENU (ТОНКОЕ МЕНЮ)
+-- CREATE MENU
 -- ============================================
 
 local function CreateMenu()
@@ -188,10 +204,10 @@ local function CreateMenu()
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     ScreenGui.Parent = PlayerGui
     
-    -- Menu Frame (ТОНКОЕ И В ЦЕНТРЕ)
+    -- Menu Frame
     local Menu = Instance.new("Frame")
     Menu.Name = "Menu"
-    Menu.Size = UDim2.new(0, 180, 0, 80)  -- УМЕНЬШЕНА ВЫСОТА
+    Menu.Size = UDim2.new(0, 180, 0, 80)
     Menu.Position = UDim2.new(0.5, -90, 0.5, -40)
     Menu.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
     Menu.BorderSizePixel = 0
@@ -201,10 +217,10 @@ local function CreateMenu()
     MenuCorner.CornerRadius = UDim.new(0, 12)
     MenuCorner.Parent = Menu
     
-    -- Header (для перетаскивания)
+    -- Header
     local Header = Instance.new("Frame")
     Header.Name = "Header"
-    Header.Size = UDim2.new(1, 0, 0, 30)  -- ТОНЬШЕ
+    Header.Size = UDim2.new(1, 0, 0, 30)
     Header.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
     Header.BorderSizePixel = 0
     Header.Parent = Menu
@@ -323,4 +339,4 @@ end)
 JoinTeam(Settings.JoinTeam)
 CreateMenu()
 
-Notify("Скрипт загружен! Меню готово. Тащи за заголовок.")
+Notify("Скрипт загружен! Аим работает везде (даже в safe zone).")
