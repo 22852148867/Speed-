@@ -28,7 +28,7 @@ end)
 local Settings = {
     JoinTeam = "Pirates",
     CameraLock = true,
-    LockRange = 250,
+    LockRange = 1000,
     SmoothSpeed = 0.3,
 }
 
