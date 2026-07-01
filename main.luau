@@ -21,8 +21,8 @@ local RootPart = Character:WaitForChild("HumanoidRootPart")
 local Settings = {
     JoinTeam = "Pirates",
     CameraLock = true,
-    LockRange = 100,
-    SmoothSpeed = 0.1,
+    LockRange = 150,
+    SmoothSpeed = 0.15,
 }
 
 -- ============================================
@@ -35,6 +35,7 @@ local MenuFrame = nil
 local isDragging = false
 local dragStart = nil
 local frameStart = nil
+local lastUpdate = 0
 
 -- ============================================
 -- UTILITY FUNCTIONS
@@ -58,15 +59,19 @@ local function IsEnemy(otherPlayer)
     end
     
     local otherChar = otherPlayer.Character
-    if not otherChar:FindFirstChild("HumanoidRootPart") then
+    if not otherChar:FindFirstChild("HumanoidRootPart") or not otherChar:FindFirstChild("Humanoid") then
         return false
     end
     
-    if otherPlayer.Team ~= Player.Team then
-        return true
+    if otherChar.Humanoid.Health <= 0 then
+        return false
     end
     
-    return false
+    if otherPlayer.Team and Player.Team and otherPlayer.Team == Player.Team then
+        return false
+    end
+    
+    return true
 end
 
 local function GetNearestEnemy()
@@ -95,38 +100,58 @@ end
 -- ============================================
 
 local function LockCameraOnTarget(targetChar)
-    if not targetChar or not targetChar:FindFirstChild("HumanoidRootPart") or not targetChar:FindFirstChild("Head") then
+    if not targetChar or not targetChar.Parent then
         LockedTarget = nil
         return
     end
     
-    if targetChar.Humanoid.Health <= 0 then
-        LockedTarget = nil
-        return
-    end
-    
+    local targetHRP = targetChar:FindFirstChild("HumanoidRootPart")
     local targetHead = targetChar:FindFirstChild("Head")
-    local targetPos = targetHead.Position + Vector3.new(0, 0.5, 0)
+    local targetHum = targetChar:FindFirstChild("Humanoid")
     
-    local currentCFrame = Camera.CFrame
-    local newCFrame = CFrame.new(currentCFrame.Position, targetPos)
+    if not targetHRP or not targetHead or not targetHum or targetHum.Health <= 0 then
+        LockedTarget = nil
+        return
+    end
     
-    Camera.CFrame = currentCFrame:Lerp(newCFrame, Settings.SmoothSpeed)
+    -- Целимся в голову с небольшим смещением вверх
+    local targetPos = targetHead.Position + Vector3.new(0, 0.3, 0)
+    
+    -- Получаем позицию камеры
+    local cameraPos = Camera.CFrame.Position
+    
+    -- Вычисляем новое направление камеры
+    local direction = (targetPos - cameraPos).Unit
+    local newCFrame = CFrame.new(cameraPos, cameraPos + direction)
+    
+    -- Плавная интерполяция
+    Camera.CFrame = Camera.CFrame:Lerp(newCFrame, Settings.SmoothSpeed)
 end
 
 local function UpdateCameraLock()
     if not CameraLocked then
+        LockedTarget = nil
         return
     end
     
-    if not LockedTarget or not LockedTarget.Parent or not LockedTarget:FindFirstChild("Humanoid") or LockedTarget.Humanoid.Health <= 0 then
-        LockedTarget = nil
+    -- Проверяем текущую цель
+    if LockedTarget then
+        if not LockedTarget.Parent then
+            LockedTarget = nil
+        else
+            local hum = LockedTarget:FindFirstChild("Humanoid")
+            if not hum or hum.Health <= 0 then
+                LockedTarget = nil
+            end
+        end
     end
     
+    -- Ищем новую цель если нет текущей
     if not LockedTarget then
         LockedTarget = GetNearestEnemy()
     end
     
+    -- Применяем блокировку
     if LockedTarget then
         LockCameraOnTarget(LockedTarget)
     end
@@ -137,6 +162,8 @@ end
 -- ============================================
 
 local function JoinTeam(teamName)
+    if not teamName then return false end
+    
     local Teams = game:GetService("Teams"):GetChildren()
     
     for _, team in pairs(Teams) do
@@ -150,7 +177,7 @@ local function JoinTeam(teamName)
 end
 
 -- ============================================
--- CREATE MENU (CENTERED WITH DRAG)
+-- CREATE MENU (SMALL & CENTERED)
 -- ============================================
 
 local function CreateMenu()
@@ -161,29 +188,29 @@ local function CreateMenu()
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     ScreenGui.Parent = PlayerGui
     
-    -- Menu Frame (CENTERED)
+    -- Menu Frame (МАЛЕНЬКОЕ И В ЦЕНТРЕ)
     local Menu = Instance.new("Frame")
     Menu.Name = "Menu"
-    Menu.Size = UDim2.new(0, 220, 0, 160)
-    Menu.Position = UDim2.new(0.5, -110, 0.5, -80)  -- Центр экрана
+    Menu.Size = UDim2.new(0, 180, 0, 120)
+    Menu.Position = UDim2.new(0.5, -90, 0.5, -60)
     Menu.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
     Menu.BorderSizePixel = 0
     Menu.Parent = ScreenGui
     
     local MenuCorner = Instance.new("UICorner")
-    MenuCorner.CornerRadius = UDim.new(0, 15)
+    MenuCorner.CornerRadius = UDim.new(0, 12)
     MenuCorner.Parent = Menu
     
     -- Header (для перетаскивания)
     local Header = Instance.new("Frame")
     Header.Name = "Header"
-    Header.Size = UDim2.new(1, 0, 0, 40)
+    Header.Size = UDim2.new(1, 0, 0, 35)
     Header.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
     Header.BorderSizePixel = 0
     Header.Parent = Menu
     
     local HeaderCorner = Instance.new("UICorner")
-    HeaderCorner.CornerRadius = UDim.new(0, 15)
+    HeaderCorner.CornerRadius = UDim.new(0, 12)
     HeaderCorner.Parent = Header
     
     -- Title
@@ -193,25 +220,25 @@ local function CreateMenu()
     Title.BackgroundTransparency = 1
     Title.Text = "⚡ SPEED"
     Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.TextSize = 16
+    Title.TextSize = 14
     Title.Font = Enum.Font.GothamBold
     Title.Parent = Header
     
     -- ON/OFF Button
     local ToggleButton = Instance.new("TextButton")
     ToggleButton.Name = "Toggle"
-    ToggleButton.Size = UDim2.new(0.9, 0, 0.6, 0)
-    ToggleButton.Position = UDim2.new(0.05, 0, 0.32, 0)
+    ToggleButton.Size = UDim2.new(0.9, 0, 0.65, 0)
+    ToggleButton.Position = UDim2.new(0.05, 0, 0.30, 0)
     ToggleButton.BackgroundColor3 = CameraLocked and Color3.fromRGB(0, 150, 100) or Color3.fromRGB(100, 100, 110)
     ToggleButton.BorderSizePixel = 0
     ToggleButton.Text = CameraLocked and "ON" or "OFF"
     ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleButton.TextSize = 18
+    ToggleButton.TextSize = 16
     ToggleButton.Font = Enum.Font.GothamBold
     ToggleButton.Parent = Menu
     
     local ToggleCorner = Instance.new("UICorner")
-    ToggleCorner.CornerRadius = UDim.new(0, 10)
+    ToggleCorner.CornerRadius = UDim.new(0, 8)
     ToggleCorner.Parent = ToggleButton
     
     ToggleButton.MouseButton1Click:Connect(function()
@@ -219,33 +246,45 @@ local function CreateMenu()
         LockedTarget = nil
         ToggleButton.BackgroundColor3 = CameraLocked and Color3.fromRGB(0, 150, 100) or Color3.fromRGB(100, 100, 110)
         ToggleButton.Text = CameraLocked and "ON" or "OFF"
-        Notify("Camera Lock: " .. (CameraLocked and "ENABLED" or "DISABLED"))
+        Notify("Camera Lock: " .. (CameraLocked and "ENABLED ✅" or "DISABLED ❌"))
     end)
     
     -- ============================================
     -- DRAG FUNCTIONALITY
     -- ============================================
     
-    Header.InputBegan:Connect(function(input, gameProcessed)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            isDragging = true
-            dragStart = UserInputService:GetMouseLocation()
-            frameStart = Menu.Position
-        end
-    end)
+    local dragging = false
+    local dragInput = nil
+    local dragStart = nil
+    local startPos = nil
     
-    UserInputService.InputEnded:Connect(function(input, gameProcessed)
-        if input.UserInputType == Enum.UserInputType.MouseButton1 then
-            isDragging = false
+    Header.InputBegan:Connect(function(input, gameProcessed)
+        if gameProcessed then return end
+        
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragInput = input
+            dragStart = input.Position
+            startPos = Menu.Position
         end
     end)
     
     UserInputService.InputChanged:Connect(function(input, gameProcessed)
-        if isDragging and input.UserInputType == Enum.UserInputType.MouseMovement then
-            local currentMouse = UserInputService:GetMouseLocation()
-            local delta = currentMouse - dragStart
-            
-            Menu.Position = frameStart + UDim2.new(0, delta.X, 0, delta.Y)
+        if dragging and input == dragInput then
+            local delta = input.Position - dragStart
+            Menu.Position = UDim2.new(
+                startPos.X.Scale,
+                startPos.X.Offset + delta.X,
+                startPos.Y.Scale,
+                startPos.Y.Offset + delta.Y
+            )
+        end
+    end)
+    
+    UserInputService.InputEnded:Connect(function(input, gameProcessed)
+        if input == dragInput then
+            dragging = false
+            dragInput = nil
         end
     end)
     
@@ -261,7 +300,9 @@ RunService.RenderStepped:Connect(function()
         return
     end
     
-    UpdateCameraLock()
+    pcall(function()
+        UpdateCameraLock()
+    end)
 end)
 
 -- ============================================
@@ -273,7 +314,6 @@ Player.CharacterAdded:Connect(function(newCharacter)
     Humanoid = Character:WaitForChild("Humanoid")
     RootPart = Character:WaitForChild("HumanoidRootPart")
     LockedTarget = nil
-    CameraLocked = Settings.CameraLock
 end)
 
 -- ============================================
@@ -283,4 +323,4 @@ end)
 JoinTeam(Settings.JoinTeam)
 CreateMenu()
 
-Notify("Скрипт загружен! Меню в центре экрана. Тащи за заголовок чтобы двигать.")
+Notify("Скрипт загружен! Меню готово. Тащи за заголовок.")
