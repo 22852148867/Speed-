@@ -1,6 +1,5 @@
 -- ============================================
--- BLOX FRUITS - CAMERA LOCK SCRIPT (MOBILE COMPACT)
--- "Auto-aim camera lock with minimalist mobile UI"
+-- BLOX FRUITS - SMART CAMERA LOCK (FIXED DISTANCE)
 -- ============================================
 
 local Players = game:GetService("Players")
@@ -14,26 +13,192 @@ local Character = Player.Character or Player.CharacterAdded:Wait()
 local Humanoid = Character:WaitForChild("Humanoid")
 local RootPart = Character:WaitForChild("HumanoidRootPart")
 
--- Обновляем переменные персонажа при возрождении
 Player.CharacterAdded:Connect(function(char)
     Character = char
     Humanoid = char:WaitForChild("Humanoid")
     RootPart = char:WaitForChild("HumanoidRootPart")
 end)
 
--- ============================================
--- DEFAULT SETTINGS
--- ============================================
+-- НАСТРОЙКА ДАЛЬНОСТИ (Только в пределах текущей зоны/острова)
+local MaxLockDistance = 300 
+local SmoothSpeed = 0.3 -- Плавность наводки
 
-local Settings = {
-    JoinTeam = "Pirates",
-    CameraLock = true,
-    LockRange = 1000,
-    SmoothSpeed = 0.3,
-}
+local CameraLocked = true
+local LockedTarget = nil
 
--- ============================================
--- VARIABLES
+-- ПОИСК БЛИЖАЙШЕГО ВРАГА НА ОСТРОВЕ
+local function GetNearestEnemy()
+    if not RootPart then return nil end
+    
+    local nearest = nil
+    local nearestDistance = MaxLockDistance
+    
+    for _, otherPlayer in pairs(Players:GetPlayers()) do
+        if otherPlayer ~= Player and otherPlayer.Character then
+            local otherChar = otherPlayer.Character
+            local otherHRP = otherChar:FindFirstChild("HumanoidRootPart")
+            local otherHum = otherChar:FindFirstChild("Humanoid")
+            
+            if otherHRP and otherHum and otherHum.Health > 0 then
+                -- Проверка команды (только соперники)
+                local isEnemy = false
+                if not Player.Team or not otherPlayer.Team then
+                    isEnemy = true
+                elseif otherPlayer.Team ~= Player.Team then
+                    isEnemy = true
+                end
+                
+                if isEnemy then
+                    local distance = (otherHRP.Position - RootPart.Position).Magnitude
+                    
+                    -- Проверяем, входит ли враг в наш радиус
+                    if distance < nearestDistance then
+                        nearestDistance = distance
+                        nearest = otherChar
+                    end
+                end
+            end
+        end
+    end
+    
+    return nearest
+end
+
+-- ОБНОВЛЕНИЕ НАВОДКИ
+local function UpdateCameraLock()
+    if not CameraLocked then
+        LockedTarget = nil
+        return
+    end
+    
+    if LockedTarget then
+        local hum = LockedTarget:FindFirstChild("Humanoid")
+        if not hum or hum.Health <= 0 or not LockedTarget.Parent then
+            LockedTarget = nil
+        else
+            -- Если цель убежала за пределы 300 метров, сбрасываем её
+            local targetHRP = LockedTarget:FindFirstChild("HumanoidRootPart")
+            if targetHRP and RootPart then
+                local dist = (targetHRP.Position - RootPart.Position).Magnitude
+                if dist > MaxLockDistance then
+                    LockedTarget = nil
+                end
+            end
+        end
+    end
+    
+    if not LockedTarget then
+        LockedTarget = GetNearestEnemy()
+    end
+    
+    if LockedTarget and LockedTarget:FindFirstChild("Head") then
+        local targetPos = LockedTarget.Head.Position + Vector3.new(0, 0.5, 0)
+        local cameraPos = Camera.CFrame.Position
+        
+        local direction = (targetPos - cameraPos)
+        if direction.Magnitude > 0 then
+            direction = direction.Unit
+            local newCFrame = CFrame.new(cameraPos, cameraPos + direction)
+            Camera.CFrame = Camera.CFrame:Lerp(newCFrame, SmoothSpeed)
+        end
+    end
+end
+
+-- СОЗДАНИЕ МИНИМАЛИСТИЧНОГО МЕНЮ
+local function CreateMenu()
+    local ScreenGui = Instance.new("ScreenGui")
+    ScreenGui.Name = "SpeedScriptGui"
+    ScreenGui.ResetOnSpawn = false
+    ScreenGui.Parent = PlayerGui
+    
+    local Menu = Instance.new("Frame")
+    Menu.Name = "Menu"
+    Menu.Size = UDim2.new(0, 180, 0, 80)
+    Menu.Position = UDim2.new(0.5, -90, 0.2, 0)
+    Menu.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
+    Menu.BorderSizePixel = 0
+    Menu.Parent = ScreenGui
+    
+    local MenuCorner = Instance.new("UICorner")
+    MenuCorner.CornerRadius = UDim.new(0, 12)
+    MenuCorner.Parent = Menu
+    
+    local Header = Instance.new("Frame")
+    Header.Name = "Header"
+    Header.Size = UDim2.new(1, 0, 0, 30)
+    Header.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
+    Header.BorderSizePixel = 0
+    Header.Parent = Menu
+    
+    local HeaderCorner = Instance.new("UICorner")
+    HeaderCorner.CornerRadius = UDim.new(0, 12)
+    HeaderCorner.Parent = Header
+    
+    local Title = Instance.new("TextLabel")
+    Title.Name = "Title"
+    Title.Size = UDim2.new(1, 0, 1, 0)
+    Title.BackgroundTransparency = 1
+    Title.Text = "⚡ SPEED AIM"
+    Title.TextColor3 = Color3.fromRGB(255, 255, 255)
+    Title.TextSize = 12
+    Title.Font = Enum.Font.GothamBold
+    Title.Parent = Header
+    
+    local ToggleButton = Instance.new("TextButton")
+    ToggleButton.Name = "Toggle"
+    ToggleButton.Size = UDim2.new(0.9, 0, 0.45, 0)
+    ToggleButton.Position = UDim2.new(0.05, 0, 0.45, 0)
+    ToggleButton.BackgroundColor3 = Color3.fromRGB(0, 150, 100)
+    ToggleButton.Text = "AIM: ON"
+    ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
+    ToggleButton.TextSize = 14
+    ToggleButton.Font = Enum.Font.GothamBold
+    ToggleButton.Parent = Menu
+    
+    local ToggleCorner = Instance.new("UICorner")
+    ToggleCorner.CornerRadius = UDim.new(0, 8)
+    ToggleCorner.Parent = ToggleButton
+    
+    ToggleButton.MouseButton1Click:Connect(function()
+        CameraLocked = not CameraLocked
+        LockedTarget = nil
+        ToggleButton.BackgroundColor3 = CameraLocked and Color3.fromRGB(0, 150, 100) or Color3.fromRGB(100, 100, 110)
+        ToggleButton.Text = CameraLocked and "AIM: ON" or "AIM: OFF"
+    end)
+    
+    -- ПЕРЕТАСКИВАНИЕ ПАЛЬЦЕМ
+    local dragging = false
+    local dragStart = nil
+    local startPos = nil
+    
+    Header.InputBegan:Connect(function(input, processed)
+        if processed then return end
+        if input.UserInputType == Enum.UserInputType.MouseButton1 or input.UserInputType == Enum.UserInputType.Touch then
+            dragging = true
+            dragStart = input.Position
+            startPos = Menu.Position
+            
+            input.Changed:Connect(function()
+                if input.UserInputState == Enum.UserInputState.End then
+                    dragging = false
+                end
+            end)
+        end
+    end)
+    
+    UserInputService.InputChanged:Connect(function(input)
+        if dragging and (input.UserInputType == Enum.UserInputType.MouseMovement or input.UserInputType == Enum.UserInputType.Touch) then
+            local delta = input.Position - dragStart
+            Menu.Position = UDim2.new(startPos.X.Scale, startPos.X.Offset + delta.X, startPos.Y.Scale, startPos.Y.Offset + delta.Y)
+        end
+    end)
+end
+
+-- СТАРТ
+task.spawn(function()
+    CreateMenu()
+    RunService.RenderStepped:Connect(UpdateCameraLock)
+end)
 -- ============================================
 
 local LockedTarget = nil
