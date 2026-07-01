@@ -22,7 +22,7 @@ local Settings = {
     JoinTeam = "Pirates",
     CameraLock = true,
     LockRange = 150,
-    SmoothSpeed = 0.15,
+    SmoothSpeed = 0.25,  -- БЫСТРЕЕ
 }
 
 -- ============================================
@@ -124,7 +124,7 @@ local function LockCameraOnTarget(targetChar)
     local direction = (targetPos - cameraPos).Unit
     local newCFrame = CFrame.new(cameraPos, cameraPos + direction)
     
-    -- Плавная интерполяция
+    -- Плавная интерполяция (БЫСТРЕЕ)
     Camera.CFrame = Camera.CFrame:Lerp(newCFrame, Settings.SmoothSpeed)
 end
 
@@ -177,7 +177,7 @@ local function JoinTeam(teamName)
 end
 
 -- ============================================
--- CREATE MENU (SMALL & CENTERED)
+-- CREATE MENU (ТОНКОЕ МЕНЮ)
 -- ============================================
 
 local function CreateMenu()
@@ -188,11 +188,11 @@ local function CreateMenu()
     ScreenGui.ZIndexBehavior = Enum.ZIndexBehavior.Sibling
     ScreenGui.Parent = PlayerGui
     
-    -- Menu Frame (МАЛЕНЬКОЕ И В ЦЕНТРЕ)
+    -- Menu Frame (ТОНКОЕ И В ЦЕНТРЕ)
     local Menu = Instance.new("Frame")
     Menu.Name = "Menu"
-    Menu.Size = UDim2.new(0, 180, 0, 120)
-    Menu.Position = UDim2.new(0.5, -90, 0.5, -60)
+    Menu.Size = UDim2.new(0, 180, 0, 80)  -- УМЕНЬШЕНА ВЫСОТА
+    Menu.Position = UDim2.new(0.5, -90, 0.5, -40)
     Menu.BackgroundColor3 = Color3.fromRGB(20, 20, 30)
     Menu.BorderSizePixel = 0
     Menu.Parent = ScreenGui
@@ -204,7 +204,7 @@ local function CreateMenu()
     -- Header (для перетаскивания)
     local Header = Instance.new("Frame")
     Header.Name = "Header"
-    Header.Size = UDim2.new(1, 0, 0, 35)
+    Header.Size = UDim2.new(1, 0, 0, 30)  -- ТОНЬШЕ
     Header.BackgroundColor3 = Color3.fromRGB(30, 30, 45)
     Header.BorderSizePixel = 0
     Header.Parent = Menu
@@ -220,7 +220,7 @@ local function CreateMenu()
     Title.BackgroundTransparency = 1
     Title.Text = "⚡ SPEED"
     Title.TextColor3 = Color3.fromRGB(255, 255, 255)
-    Title.TextSize = 14
+    Title.TextSize = 12
     Title.Font = Enum.Font.GothamBold
     Title.Parent = Header
     
@@ -228,12 +228,12 @@ local function CreateMenu()
     local ToggleButton = Instance.new("TextButton")
     ToggleButton.Name = "Toggle"
     ToggleButton.Size = UDim2.new(0.9, 0, 0.65, 0)
-    ToggleButton.Position = UDim2.new(0.05, 0, 0.30, 0)
+    ToggleButton.Position = UDim2.new(0.05, 0, 0.35, 0)
     ToggleButton.BackgroundColor3 = CameraLocked and Color3.fromRGB(0, 150, 100) or Color3.fromRGB(100, 100, 110)
     ToggleButton.BorderSizePixel = 0
     ToggleButton.Text = CameraLocked and "ON" or "OFF"
     ToggleButton.TextColor3 = Color3.fromRGB(255, 255, 255)
-    ToggleButton.TextSize = 16
+    ToggleButton.TextSize = 14
     ToggleButton.Font = Enum.Font.GothamBold
     ToggleButton.Parent = Menu
     
