@@ -1,5 +1,5 @@
 -- ============================================
--- BLOX FRUITS - ULTRA PVP AIMBOT (SAFE FIXED)
+-- BLOX FRUITS - RAW PVP AIMBOT (SAFE FRIENDS CHECK)
 -- ============================================
 
 local Players = game:GetService("Players")
@@ -21,34 +21,25 @@ end)
 
 -- НАСТРОЙКИ
 local MaxLockDistance = 400 
-local SmoothSpeed = 0.7 -- Скорость наводки на максимум
-local CameraLocked = false -- СТАРТУЕТ ВЫКЛЮЧЕННЫМ
+local SmoothSpeed = 0.7 -- Мгновенная наводка
+local CameraLocked = false -- Изначально ВЫКЛЮЧЕН при старте
 
 local LockedTarget = nil
 
--- БЕЗОПАСНАЯ ПРОВЕРКА НА СОЮЗНИКА И КЛАН (БЕЗ ВЫЛЕТОВ)
+-- БЕЗОПАСНАЯ ПРОВЕРКА (ПРОПУСКАЕТ ТОЛЬКО ТЕБЯ И ТВОИХ ДРУЗЕЙ ИЗ ROBLOX)
 local function IsValidEnemy(otherPlayer)
     if not otherPlayer or otherPlayer == Player then return false end
     
-    -- 1. Проверка на фракцию (Марины / Пираты)
-    if Player.Team and otherPlayer.Team and Player.Team == otherPlayer.Team then
+    -- Проверка на друзей в Roblox (не лочит тех, кто у тебя во френдлисте)
+    local isFriend = Player:IsFriendsWith(otherPlayer.UserId)
+    if isFriend then 
         return false 
-    end
-    
-    -- 2. Безопасная проверка Crew (Клана) через поиск значений
-    local pCrew = Player:FindFirstChild("CrewName") or Player:FindFirstChild("Leaderstats") and Player.Leaderstats:FindFirstChild("Crew")
-    local oCrew = otherPlayer:FindFirstChild("CrewName") or otherPlayer:FindFirstChild("Leaderstats") and otherPlayer.Leaderstats:FindFirstChild("Crew")
-    
-    if pCrew and oCrew and pCrew.Value ~= "" and oCrew.Value ~= "" then
-        if pCrew.Value == oCrew.Value then
-            return false -- Одинаковый клан = союзник
-        end
     end
     
     return true
 end
 
--- ПОИСК БЛИЖАЙШЕГО ВРАГА
+-- ПОИСК БЛИЖАЙШЕГО ИГРОКА НА ОСТРОВЕ
 local function GetNearestEnemy()
     if not RootPart then return nil end
     
@@ -74,7 +65,7 @@ local function GetNearestEnemy()
     return nearest
 end
 
--- ОБНОВЛЕНИЕ КАМЕРЫ (МГНОВЕННЫЙ ЗАХВАТ)
+-- ОБНОВЛЕНИЕ НАВОДКИ
 local function UpdateCameraLock()
     if not CameraLocked then
         LockedTarget = nil
@@ -114,6 +105,11 @@ end
 
 -- СОЗДАНИЕ ИНТЕРФЕЙСА
 local function CreateMenu()
+    -- Безопасное удаление старого меню, если оно вдруг зависло в памяти
+    if PlayerGui:FindFirstChild("SpeedScriptGui") then
+        PlayerGui.SpeedScriptGui:Destroy()
+    end
+
     local ScreenGui = Instance.new("ScreenGui")
     ScreenGui.Name = "SpeedScriptGui"
     ScreenGui.ResetOnSpawn = false
@@ -174,7 +170,7 @@ local function CreateMenu()
         ToggleButton.Text = CameraLocked and "AIM: ON" or "AIM: OFF"
     end)
     
-    -- ПЕРЕТАСКИВАНИЕ МЕНЮ ПАЛЬЦЕМ
+    -- ПЕРЕТАСКИВАНИЕ МЕНЮ
     local dragging = false
     local dragStart = nil
     local startPos = nil
@@ -202,7 +198,7 @@ local function CreateMenu()
     end)
 end
 
--- СТАРТ
+-- ЗАПУСК БЕЗ СБОЕВ
 task.spawn(function()
     CreateMenu()
     RunService.RenderStepped:Connect(UpdateCameraLock)
